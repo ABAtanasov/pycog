@@ -1,12 +1,16 @@
 """
-Context-dependent integration task, loosely based on
+Perceptual decision-making task, loosely based on the random dot motion
+discrimination task.
 
-  Context-dependent computation by recurrent dynamics in prefrontal cortex.
-  V. Mante, D. Sussillo, K. V. Shinoy, & W. T. Newsome, Nature 2013.
+  Response of neurons in the lateral intraparietal area during a combined visual
+  discrimination reaction time task.
+  J. D. Roitman & M. N. Shadlen, JNS 2002.
 
-  http://www.nature.com/nature/journal/v503/n7474/full/nature12742.html
+  http://www.jneurosci.org/content/22/21/9475.abstract
 
 """
+#You have to change hi/lo to yes/no
+
 from __future__ import division
 
 import numpy as np
@@ -17,12 +21,26 @@ from pycog import tasktools
 # Network structure
 #-----------------------------------------------------------------------------------------
 
-Nin  = 6
-N    = 150
+Nin  = 2
+N    = 100
 Nout = 2
 
 # E/I
 ei, EXC, INH = tasktools.generate_ei(N)
+
+# Input labels
+POS = 0
+NEG = 1
+
+yes = 1
+no = 0.2
+
+#-----------------------------------------------------------------------------------------
+# Recurrent connectivity
+#-----------------------------------------------------------------------------------------
+
+Crec = tasktools.generate_Crec(ei, p_exc=0.1, p_inh=0.5, seed=1066)
+
 
 #-----------------------------------------------------------------------------------------
 # Output connectivity
@@ -35,15 +53,10 @@ Cout[:,EXC] = 1
 # Task structure
 #-----------------------------------------------------------------------------------------
 
-contexts    = ['m', 'c']
-cohs        = [1, 3, 10]
-left_rights = [1, -1]
-nconditions = len(contexts)*(len(cohs)*len(left_rights))**2
-pcatch      = 1/(nconditions + 1)
-
-SCALE = 5
-def scale(coh):
-    return (1 + SCALE*coh/100)/2
+conditions = [(yes, yes), (yes, no), (no, yes), (no, no)]
+in_outs = ['equal', 'notequal']
+nconditions = len(conditions)#*len(in_outs)
+pcatch      = 0     #implement catch trials
 
 def generate_trial(rng, dt, params):
     #-------------------------------------------------------------------------------------
@@ -52,32 +65,20 @@ def generate_trial(rng, dt, params):
 
     catch_trial = False
     if params['name'] in ['gradient', 'test']:
-        if params.get('catch', rng.rand() < pcatch):
+        if params.get('catch', rng.rand() < pcatch): #pcatch chance of a catch trial
             catch_trial = True
         else:
-            # Context
-            context = params.get('context', rng.choice(contexts))
-
-            # Coherences
-            coh_m = params.get('coh_m', rng.choice(cohs))
-            coh_c = params.get('coh_c', rng.choice(cohs))
-
-            # Left/right
-            left_right_m = params.get('left_right_m', rng.choice(left_rights))
-            left_right_c = params.get('left_right_c', rng.choice(left_rights))
+            cond    = params.get('conditions', conditions[rng.choice(len(conditions))])
+            #Revert back to cohs if this brings up an issue
+            in_out = params.get('in_out', rng.choice(in_outs)) 
     elif params['name'] == 'validation':
         b = params['minibatch_index'] % (nconditions + 1)
         if b == 0:
             catch_trial = True
         else:
-            k = tasktools.unravel_index(b-1, (len(contexts),
-                                              len(cohs), len(cohs),
-                                              len(left_rights), len(left_rights)))
-            context      = contexts[k[0]]
-            coh_m        = cohs[k[1]]
-            coh_c        = cohs[k[2]]
-            left_right_m = left_rights[k[3]]
-            left_right_c = left_rights[k[4]]
+            k0, k1 = tasktools.unravel_index(b-1, (len(conditions), len(in_outs)))
+            cond    = conditions[k0]
+            in_out = in_outs[k1]
     else:
         raise ValueError("Unknown trial type.")
 
@@ -85,21 +86,33 @@ def generate_trial(rng, dt, params):
     # Epochs
     #-------------------------------------------------------------------------------------
 
+
     if catch_trial:
-        epochs = {'T': 2000}
+        epochs = {'T': 2500}
     else:
         if params['name'] == 'test':
-            fixation = 400
+            fixation = 300
         else:
             fixation = 100
-        stimulus = 800
-        decision = 300
-        T        = fixation + stimulus + decision
+        f1 = 100
+        delay = 200
+        f2       = 100
+        decision = 200
+    # else:
+    #     if params['name'] == 'test':
+    #         firstInterval = 300
+    #     else:
+    #         firstInterval = 100
+    #     secondInterval = 200
+    #     decision = 200
+        T        = fixation + f1 + delay + f2 + decision
 
         epochs = {
             'fixation': (0, fixation),
-            'stimulus': (fixation, fixation + stimulus),
-            'decision': (fixation + stimulus, T)
+            'f1':       (fixation, fixation + f1),
+            'delay':    (fixation + f1, fixation + f1 + delay),
+            'f2':       (fixation + f1 + delay, fixation + f1 + delay + f2),
+            'decision': (fixation + f1 + delay + f2, T)
             }
         epochs['T'] = T
 
@@ -107,32 +120,26 @@ def generate_trial(rng, dt, params):
     # Trial info
     #-------------------------------------------------------------------------------------
 
-    t, e  = tasktools.get_epochs_idx(dt, epochs) # Time, task epochs in discrete time
+    t, e  = tasktools.get_epochs_idx(dt, epochs) # Time, e is array of epochs w/ points
     trial = {'t': t, 'epochs': epochs}           # Trial
 
     if catch_trial:
         trial['info'] = {}
     else:
-        if context == 'm':
-            left_right = left_right_m
-        else:
-            left_right = left_right_c
-
         # Correct choice
-        if left_right > 0:
-            choice = 0
+        
+        if cond in [(yes, yes),(no, no)]:
+            choice=0
         else:
-            choice = 1
+            choice=1
+        
+        #if in_out == 'equal':
+        #    choice = 0
+        #else:
+        #    choice = 1
 
         # Trial info
-        trial['info'] = {
-            'coh_m':        coh_m,
-            'left_right_m': left_right_m,
-            'coh_c':        coh_c,
-            'left_right_c': left_right_c,
-            'context':      context,
-            'choice':       choice
-            }
+        trial['info'] = {'cond': cond, 'in_out': in_out, 'choice': choice}
 
     #-------------------------------------------------------------------------------------
     # Inputs
@@ -140,27 +147,13 @@ def generate_trial(rng, dt, params):
 
     X = np.zeros((len(t), Nin))
     if not catch_trial:
-        # Context
-        if context == 'm':
-            X[e['stimulus'],0] = 1
-        else:
-            X[e['stimulus'],1] = 1
+        # Stimulus 1
+        X[e['f1'],POS] = cond[0]
+        X[e['f1'],NEG] = yes + no - cond[0] #flipped frequency 1->0.2, 0.2 -> 1
 
-        # Motion stimulus
-        if left_right_m > 0:
-            choice_m = 0
-        else:
-            choice_m = 1
-        X[e['stimulus'],2+choice_m]     = scale(+coh_m)
-        X[e['stimulus'],2+(1-choice_m)] = scale(-coh_m)
-
-        # Colour stimulus
-        if left_right_c > 0:
-            choice_c = 0
-        else:
-            choice_c = 1
-        X[e['stimulus'],4+choice_c]     = scale(+coh_c)
-        X[e['stimulus'],4+(1-choice_c)] = scale(-coh_c)
+        # Stimulus 2
+        X[e['f2'],POS] = cond[1]
+        X[e['f2'],NEG] = yes + no - cond[1] #flipped frequency 1->0.2, 0.2 -> 1
     trial['inputs'] = X
 
     #-------------------------------------------------------------------------------------
@@ -168,8 +161,8 @@ def generate_trial(rng, dt, params):
     #-------------------------------------------------------------------------------------
 
     if params.get('target_output', False):
-        Y = np.zeros((len(t), Nout)) # Output matrix
-        M = np.zeros_like(Y)         # Mask matrix
+        Y = np.zeros((len(t), Nout)) # Output
+        M = np.zeros_like(Y)         # Mask
 
         # Hold values
         hi = 1
@@ -183,8 +176,8 @@ def generate_trial(rng, dt, params):
             Y[e['fixation'],:] = lo
 
             # Decision
-            Y[e['decision'],choice]   = hi
-            Y[e['decision'],1-choice] = lo
+            Y[e['decision'],choice]   = hi # One neuron spikes high
+            Y[e['decision'],1-choice] = lo # The other spikes low
 
             # Only care about fixation and decision periods
             M[e['fixation']+e['decision'],:] = 1
@@ -197,16 +190,15 @@ def generate_trial(rng, dt, params):
 
     return trial
 
-# Gradient dataset
-n_gradient = 50
-
 # Performance measure
-performance = tasktools.performance_2afc
+performance = tasktools.performance_2afc_min_condition
 
+
+min_error = 0.05
 # Termination criterion
-TARGET_PERFORMANCE = 90
-def terminate(pcorrect_history):
-    return np.mean(pcorrect_history[-5:]) > TARGET_PERFORMANCE
+TARGET_PERFORMANCE = 85
+def terminate(performance_history):
+    return np.mean(performance_history[-1:]) >= TARGET_PERFORMANCE
 
-# Validation dataset
-n_validation = 50*(nconditions + 1)
+# Validation
+n_validation = 100*(nconditions + 1)

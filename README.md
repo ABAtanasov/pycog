@@ -1,5 +1,10 @@
 # Train excitatory-inhibitory recurrent neural networks for cognitive tasks
 
+## Forked: Training RNNs for discriminatory tasks
+
+The added tasks workingMemory.py, romoOne.py and its generalizations are working. They are currently being analyzed to see how we can improve training speed and understand the dynamics of the trained networks.
+
+
 ## Requirements
 
 This code is written in Python 2.7 and requires
@@ -32,6 +37,7 @@ python setup.py install
 
 ## Examples
 
+
 Example task specifications, including those used to generate the figures in the paper, can be found in `examples/models`.
 
 Training and testing networks involves some boring logistics, especially regarding file paths. You may find the script `examples/do.py` helpful as you start working with your own networks. For instance, to train a new network we can just type (from the `examples` directory)
@@ -46,34 +52,11 @@ For this particular example we've also directly included code for training and p
 python models/sinewave.py
 ```
 
+
+
 ## Notes
 
-* The default recurrent noise level (used for most of the tasks in our paper) is rather high. When training a new task start with a value of `var_rec` that is small, then increase the noise for more robust solutions.
-
-* A list of parameters and their default values can be found in `defaults.py`
-
-* The default time step is also relatively large, so always test with a smaller time step (say 0.05) and re-train with a smaller step size if the results change.
-
-* By default, recurrent and output biases are set to zero. If you encounter difficulties with training, try including the biases by setting `train_brec = True` and/or `train_bout = True`.
-
-* If you still have difficulties with training, try changing the value of `lambda_Omega`, the multiplier for the vanishing-gradient regularizer.
-
-* It's common to see the following warning when running Theano:
-
-  ```
-  RuntimeWarning: numpy.ndarray size changed, may indicate binary incompatibility
-  rval = __import__(module_name, {}, {}, [module_name])
-  ```
-
-  This is almost always innocuous and can be safely ignored.
-
-## Acknowledgments
-
-This code would not be possible without
-
-* On the difficulty of training recurrent neural networks.                                         
-  R. Pascanu, T. Mikolov, & Y. Bengio, ICML 2013.                                                  
-  https://github.com/pascanur/trainingRNNs
+C.F. The original source https://github.com/frsong/pycog/blob/master/README.md
 
 ## License
 

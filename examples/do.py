@@ -163,13 +163,15 @@ elif action == 'train':
     from pycog import Model
 
     # Model specification
-    model = Model(modelfile=modelfile)
-
+    model = Model(modelfile=modelfile) #the input is literally the .py model
+    
+    #Check the Model class for more information
+    
     # Avoid locks on the cluster
     compiledir = join(theanopath, '{}-{}'.format(name, int(time.time())))
 
     # Train
-    model.train(savefile, seed=seed, compiledir=compiledir, gpus=gpus)
+    model.train(savefile, seed=seed, compiledir=compiledir, gpus=gpus) 
 
 #=========================================================================================
 # Test resting state

@@ -37,8 +37,8 @@ Cout[:,EXC] = 1
 # Task structure
 #-----------------------------------------------------------------------------------------
 
-cohs        = [1, 2, 4, 8, 16]
-in_outs     = [1, -1]
+cohs        = [1, 2, 4, 8, 16] #coherences
+in_outs     = [1, -1]   #right or left
 nconditions = len(cohs)*len(in_outs)
 pcatch      = 1/(nconditions + 1)
 
@@ -56,8 +56,8 @@ def generate_trial(rng, dt, params):
         if params.get('catch', rng.rand() < pcatch):
             catch_trial = True
         else:
-            coh    = params.get('coh',    rng.choice(cohs))
-            in_out = params.get('in_out', rng.choice(in_outs))
+            coh    = params.get('coh',    rng.choice(cohs)) #random coherence
+            in_out = params.get('in_out', rng.choice(in_outs)) #random movement
     elif params['name'] == 'validation':
         b = params['minibatch_index'] % (nconditions + 1)
         if b == 0:
@@ -102,10 +102,10 @@ def generate_trial(rng, dt, params):
         trial['info'] = {}
     else:
         # Correct choice
-        if in_out > 0:
+        if in_out > 0:  #if in_out == 1, so movement right basically
             choice = 0
         else:
-            choice = 1
+            choice = 1  #if in_out == -1
 
         # Trial info
         trial['info'] = {'coh': coh, 'in_out': in_out, 'choice': choice}
@@ -129,22 +129,22 @@ def generate_trial(rng, dt, params):
         M = np.zeros_like(Y)         # Mask
 
         # Hold values
-        hi = 1
-        lo = 0.2
+        hi = 1      #corresponding to a really active neuron
+        lo = 0.2    #corresponding to background noise
 
         if catch_trial:
             Y[:] = lo
             M[:] = 1
         else:
             # Fixation
-            Y[e['fixation'],:] = lo
+            Y[e['fixation'],:] = lo                 #Both neurons should be quiet now
 
             # Decision
-            Y[e['decision'],choice]   = hi
-            Y[e['decision'],1-choice] = lo
+            Y[e['decision'],choice]   = hi          #The choice neuron should buzz
+            Y[e['decision'],1-choice] = lo          #The other should be static
 
             # Only care about fixation and decision periods
-            M[e['fixation']+e['decision'],:] = 1
+            M[e['fixation']+e['decision'],:] = 1    
 
         # Outputs and mask
         trial['outputs'] = Y

@@ -98,7 +98,7 @@ def train(model, seed=None):
          .format(join(examplespath, 'do.py'), join(modelspath, model), seed, gpus))
     tend = datetime.datetime.now()
 
-    # Save training time
+    # Save training time        (pretty irrelevant for now)
     totalmins = int((tend - tstart).total_seconds()/60)
     timefile = join(timespath, model + '_time.txt')
     np.savetxt(timefile, [totalmins], fmt='%d')
@@ -123,12 +123,12 @@ def train_seeds(model, start_seed=1, ntrain=5):
 def trials(model, ntrials, analysis=None, args=''):
     if analysis is None:
         analysis = model
-
+        #e.g.       python do.py models/romo.py run analysis/romo.py 100
     call("python {} {} run {} trials {} {}".format(join(examplespath, 'do.py'),
                                                    join(modelspath, model),
                                                    join(analysispath, analysis),
                                                    ntrials, args))
-
+                                                 
 def do_action(model, action, analysis=None):
     if analysis is None:
         analysis = model

@@ -18,7 +18,7 @@ from pycog import tasktools
 # Network structure
 #-----------------------------------------------------------------------------------------
 
-Nin  = 2
+Nin  = 1
 N    = 100
 Nout = 2
 
@@ -71,7 +71,8 @@ def generate_trial(rng, dt, params):
         if params.get('catch', rng.rand() < pcatch):  #pcatch probability of catch trial
             catch_trial = True
         else:
-            fpair = params.get('fpair', fpairs[rng.choice(len(fpairs))]) #random pair
+            fpair = params.get('fpair', fpairs[rng.choice(len(fpairs))]) 
+            #either the initial ones it or randomly generate them
             gt_lt = params.get('gt_lt', rng.choice(gt_lts)) #random order
     elif params['name'] == 'validation':    
         b = params['minibatch_index'] % (nconditions + 1)
@@ -142,11 +143,9 @@ def generate_trial(rng, dt, params):
     if not catch_trial:
         # Stimulus 1
         X[e['f1'],POS] = scale_p(f1)
-        X[e['f1'],NEG] = scale_n(f1)
 
         # Stimulus 2
         X[e['f2'],POS] = scale_p(f2)
-        X[e['f2'],NEG] = scale_n(f2)
     trial['inputs'] = X
 
     #---------------------------------------------------------------------------------
@@ -199,7 +198,7 @@ if __name__ == '__main__':
     model = Model(N=N, Nin=Nin, Nout=Nout, ei=ei, Crec=Crec, Cout=Cout,
                   generate_trial=generate_trial, 
                   n_validation=n_validation, performance=performance, terminate=terminate)
-    model.train('romo_savefile.pkl', seed=100, recover=False)
+    model.train('romoOne_savefile.pkl', seed=100, recover=False)
 
    #-------------------------------------------------------------------------------------
    # Plot
@@ -209,7 +208,7 @@ if __name__ == '__main__':
     from pycog.figtools import Figure
 
     rng = np.random.RandomState(1066)
-    rnn  = RNN('romo_savefile.pkl', {'dt': 2})
+    rnn  = RNN('romoOne_savefile.pkl', {'dt': 2})
 
     trial_args = {'name':  'test', 'catch': False, 'fpair': (34, 26), 'gt_lt': '>'}
 
@@ -230,12 +229,11 @@ if __name__ == '__main__':
     yall  = []
 
     plot.plot(t, rnn.u[0], color=Figure.colors('orange'), lw=0.5)
-    plot.plot(t, rnn.u[1], color=Figure.colors('blue'), lw=0.5)
     plot.plot(t, rnn.z[0], color=Figure.colors('red'), lw=0.5)
     plot.plot(t, rnn.z[1], color=Figure.colors('green'), lw=0.5)
     
     plot.xlabel('time')
     plot.ylabel('output')
 
-    fig.save(path='.', name='Romo_Figure')
+    fig.save(path='.', name='romoOne_Figure')
    

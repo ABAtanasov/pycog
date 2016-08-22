@@ -18,7 +18,7 @@ from pycog import tasktools
 # Network structure
 #-----------------------------------------------------------------------------------------
 
-Nin  = 2
+Nin  = 1
 N    = 100
 Nout = 2
 
@@ -46,19 +46,18 @@ Cout[:,EXC] = 1
 # Task structure
 #-----------------------------------------------------------------------------------------
 
-fpairs      = [(18, 10), (22, 14), (26, 18), (30, 22), (34, 26)] #note first number is >
-gt_lts      = ['>', '<']    #whether it's greater or less than
-nconditions = len(fpairs)*len(gt_lts)
+pairs      = [(30,30), (30,15), (15,30), (15,15)] 
+nconditions = len(pairs)#*len(gt_lts)
 pcatch      = 1/(nconditions + 1)
 
-fall = np.ravel(fpairs)
+fall = np.ravel(pairs)
 fmin = np.min(fall)
 fmax = np.max(fall)
 
-def scale_p(f):     #how far it is from the min (how large it is)
+def scale_p(f):
     return 0.4 + 0.8*(f - fmin)/(fmax - fmin)
 
-def scale_n(f):     #how far it is from the max (how small it is)
+def scale_n(f):
     return 0.4 + 0.8*(fmax - f)/(fmax - fmin)
 
 def generate_trial(rng, dt, params):
@@ -71,16 +70,17 @@ def generate_trial(rng, dt, params):
         if params.get('catch', rng.rand() < pcatch):  #pcatch probability of catch trial
             catch_trial = True
         else:
-            fpair = params.get('fpair', fpairs[rng.choice(len(fpairs))]) #random pair
-            gt_lt = params.get('gt_lt', rng.choice(gt_lts)) #random order
+            pair = params.get('pair', pairs[rng.choice(len(pairs))]) #random pair
+            #gt_lt = params.get('gt_lt', rng.choice(gt_lts)) #random order
     elif params['name'] == 'validation':    
-        b = params['minibatch_index'] % (nconditions + 1)
+        b = params['minibatch_index'] % (nconditions + 1) #0 to 4
+        
         if b == 0:
             catch_trial = True
-        else:
-            k0, k1 = tasktools.unravel_index(b-1, (len(fpairs), len(gt_lts)))
-            fpair  = fpairs[k0]
-            gt_lt  = gt_lts[k1]
+        else:       #b-1 is 0 to 3, len(pairs) = 0 to 1
+            k0, k1 = tasktools.unravel_index(b-1, (len(pairs),1))#len(gt_lts)))
+            pair  = pairs[b-1]
+            #gt_lt  = gt_lts[k1]
     else:
         raise ValueError("Unknown trial type.")
 
@@ -99,7 +99,7 @@ def generate_trial(rng, dt, params):
         if params['name'] == 'test':
             delay = 3000
         else:
-            delay = tasktools.uniform(rng, dt, 2500, 3500)
+            delay = 3000
         f2       = 500
         decision = 300
         T        = fixation + f1 + delay + f2 + decision
@@ -123,16 +123,15 @@ def generate_trial(rng, dt, params):
     if catch_trial:
         trial['info'] = {}
     else:
+        a1, a2 = pair
         # Correct choice
-        if gt_lt == '>':     # If f_1 > f_2
-            f1, f2 = fpair
+        if a1 == a2:     
             choice = 0
-        else:                # If f_1 < f_2, reverse
-            f2, f1 = fpair
+        else:                
             choice = 1
 
         # Info
-        trial['info'] = {'f1': f1, 'f2': f2, 'choice': choice}
+        trial['info'] = {'f1': a1, 'f2': a2, 'choice': choice}
 
     #---------------------------------------------------------------------------------
     # Inputs
@@ -141,12 +140,12 @@ def generate_trial(rng, dt, params):
     X = np.zeros((len(t), Nin))
     if not catch_trial:
         # Stimulus 1
-        X[e['f1'],POS] = scale_p(f1)
-        X[e['f1'],NEG] = scale_n(f1)
+        X[e['f1'],POS] = scale_p(a1)
+        #X[e['f1'],NEG] = scale_n(f1)
 
         # Stimulus 2
-        X[e['f2'],POS] = scale_p(f2)
-        X[e['f2'],NEG] = scale_n(f2)
+        X[e['f2'],POS] = scale_p(a2)
+        #X[e['f2'],NEG] = scale_n(f2)
     trial['inputs'] = X
 
     #---------------------------------------------------------------------------------
@@ -185,10 +184,12 @@ def generate_trial(rng, dt, params):
 # Performance measure
 performance = tasktools.performance_2afc_min_condition
 
+#min_error = 0.15
+
 # Termination criterion
-TARGET_PERFORMANCE = 85
+TARGET_PERFORMANCE = 90
 def terminate(performance_history):
-    return np.mean(performance_history[-1:]) >= TARGET_PERFORMANCE
+    return np.mean(performance_history[-3:]) >= TARGET_PERFORMANCE
 
 # Validation dataset
 n_validation = 100*(nconditions + 1)
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     model = Model(N=N, Nin=Nin, Nout=Nout, ei=ei, Crec=Crec, Cout=Cout,
                   generate_trial=generate_trial, 
                   n_validation=n_validation, performance=performance, terminate=terminate)
-    model.train('romo_savefile.pkl', seed=100, recover=False)
+    model.train('workingMemory_savefile.pkl', seed=100, recover=False)
 
    #-------------------------------------------------------------------------------------
    # Plot
@@ -209,9 +210,9 @@ if __name__ == '__main__':
     from pycog.figtools import Figure
 
     rng = np.random.RandomState(1066)
-    rnn  = RNN('romo_savefile.pkl', {'dt': 2})
+    rnn  = RNN('workingMemory_savefile.pkl', {'dt': 2})
 
-    trial_args = {'name':  'test', 'catch': False, 'fpair': (34, 26), 'gt_lt': '>'}
+    trial_args = {'name':  'test', 'catch': False, 'pair': (15, 30)}
 
     info = rnn.run(inputs=(generate_trial, trial_args), rng=rng)
 
@@ -230,12 +231,12 @@ if __name__ == '__main__':
     yall  = []
 
     plot.plot(t, rnn.u[0], color=Figure.colors('orange'), lw=0.5)
-    plot.plot(t, rnn.u[1], color=Figure.colors('blue'), lw=0.5)
+    #plot.plot(t, rnn.u[1], color=Figure.colors('blue'), lw=0.5)
     plot.plot(t, rnn.z[0], color=Figure.colors('red'), lw=0.5)
     plot.plot(t, rnn.z[1], color=Figure.colors('green'), lw=0.5)
     
     plot.xlabel('time')
     plot.ylabel('output')
 
-    fig.save(path='.', name='Romo_Figure')
+    fig.save(path='.', name='workingMemory_Figure')
    

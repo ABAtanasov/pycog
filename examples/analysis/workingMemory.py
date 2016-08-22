@@ -37,7 +37,7 @@ def get_sortedfile(p):
     return join(p['trialspath'], p['name'] + '_sorted.pkl')
 
 # Simple choice function
-def get_choice(trial):
+def get_choice(trial):  #return the value of the neuron at the very final time
     return np.argmax(trial['z'][:,-1])
 
 # Define "active" units
@@ -66,9 +66,7 @@ colors = {
 # Integration threshold
 threshold = 0.8
 
-#=========================================================================================
-
-def run_trials(p, args):
+def run_trials(p, args):        #args are the number of trials
     """
     Run trials.
 
@@ -94,28 +92,22 @@ def run_trials(p, args):
     try:
         for i in xrange(ntrials):
             # Condition
-            b      = i % m.nconditions
-            k0, k1 = tasktools.unravel_index(b, (len(m.fpairs), len(m.gt_lts)))
-            fpair  = m.fpairs[k0]
-            gt_lt  = m.gt_lts[k1]
+            b      = i % m.nconditions  #iterate through all conditions
+            k0, k1 = tasktools.unravel_index(b, (len(m.pairs), 1))
+            pair  = m.pairs[k0]
 
             # Trial
             trial_func = m.generate_trial
             trial_args = {
                 'name':  'test',
                 'catch': False,
-                'fpair': fpair,
-                'gt_lt': gt_lt
+                'pair': pair,
                 }
             info = rnn.run(inputs=(trial_func, trial_args), rng=rng)
 
             # Display trial type
-            if info['f1'] > info['f2']:
-                gt_lt = '>'
-            else:
-                gt_lt = '<'
-            s = ("Trial {:>{}}/{}: {:>2} {} {:>2}"
-                 .format(i+1, w, ntrials, info['f1'], gt_lt, info['f2']))
+            s = ("Trial {:>{}}/{}: {:>2} {:>2}"
+                 .format(i+1, w, ntrials, info['f1'], info['f2']))
             sys.stdout.write(backspaces*'\b' + s)
             sys.stdout.flush()
             backspaces = len(s)
@@ -144,8 +136,6 @@ def run_trials(p, args):
 
     # Psychometric function
     psychometric_function(filename)
-
-#=========================================================================================
 
 def psychometric_function(trialsfile, plot=None, smap=None, **kwargs):
     """
@@ -210,8 +200,6 @@ def psychometric_function(trialsfile, plot=None, smap=None, **kwargs):
         ymin, ymax = plot.get_ylim()
         plot.plot([xmin, xmax], [ymin, ymax], color='k', lw=kwargs.get('lw', 1))
 
-#=========================================================================================
-
 def sort_trials(trialsfile, sortedfile):
     # Load trials
     trials, ntrials = load_trials(trialsfile)
@@ -232,7 +220,7 @@ def sort_trials(trialsfile, sortedfile):
         info   = trial['info']
         choice = get_choice(trial)
 
-        # Include only correct trials
+        # Include only correct trials      THIS IS WHY SOME NUMBERS ARE SKIPPED
         if choice != info['choice']:
             continue
 
@@ -255,7 +243,6 @@ def plot_unit(unit, sortedfile, plot, smap, t0=0, tmin=-np.inf, tmax=np.inf, **k
     unit : int
     sortedfile : str
     plot : pycog.figtools.Subplot
-
     """
     # Load sorted trials
     with open(sortedfile) as f:
@@ -283,13 +270,9 @@ def plot_unit(unit, sortedfile, plot, smap, t0=0, tmin=-np.inf, tmax=np.inf, **k
 
     return np.concatenate(all)
 
-#=========================================================================================
-
 def get_active_units(sorted_trials):
-    """
-    Get units that do something.
+    #Get units that do something.
 
-    """
     N = next(sorted_trials.itervalues()).shape[0]
     units = []
     for i in xrange(N):
@@ -304,16 +287,12 @@ def get_active_units(sorted_trials):
     return units
 
 def tuning(sortedfile):
-    """
-    Fit r = a0 + a1*f1.
-
-    """
-    # Load sorted trials
-    with open(sortedfile) as f:
+    #Fit r = a0 + a1*f1.
+    
+    with open(sortedfile) as f:         # Load sorted trials
         t, sorted_trials = pickle.load(f)
-
-    # Get f1s
-    f1s = sorted(sorted_trials.keys())
+        
+    f1s = sorted(sorted_trials.keys())      # Get f1s
 
     # Active units
     units = get_active_units(sorted_trials)
@@ -335,118 +314,18 @@ def tuning(sortedfile):
 
     return units, a1s, pvals
 
-def tuning_corr(trialsfile, sortedfile, plot_sig, plot_corr=None,
-                plot_stim=None, plot_delay=None, t0=0, **kwargs):
-    """
-    Plot correlation of a1 between different times.
-
-    """
-    units, a1s, pvals = tuning(sortedfile)
-
-    # Get first trial
-    trials, _ = load_trials(trialsfile)
-    trial = trials[0]
-    info  = trial['info']
-    t     = trial['t']
-
-    _, delay_end = info['epochs']['delay']
-    delay_end = 1e-3*(delay_end - t0)
-
-    t_stim   = np.mean(info['epochs']['f1'])
-    idx_stim = np.where(t >= t_stim)[0][0]
-
-    t_delay   = np.mean(info['epochs']['delay'])
-    idx_delay = np.where(t >= t_delay)[0][0]
-
-    t_delay_end   = info['epochs']['delay'][1]
-    idx_delay_end = np.where(t > t_delay_end)[0][0]
-
-    t_f2_end   = info['epochs']['f2'][1]
-    idx_f2_end = np.where(t > t_f2_end)[0][0]
-
-    t_all   = 1e-3*(t[idx_stim:idx_delay_end]-t0)
-    idx_all = np.arange(len(t))[idx_stim:idx_delay_end]
-
-    # Plot correlation across time
-    if plot_corr is not None:
-        plot = plot_corr
-
-        # With stimulus period
-        corr = []
-        for k in idx_all:
-            corr.append(stats.pearsonr(a1s[:,idx_stim], a1s[:,k])[0])
-        plot.plot(t_all, corr, color=Figure.colors('blue'), lw=kwargs.get('lw', 1))
-
-        # With stimulus period
-        corr = []
-        for k in idx_all:
-            corr.append(stats.pearsonr(a1s[:,idx_delay], a1s[:,k])[0])
-        plot.plot(t_all, corr, color=Figure.colors('green'), lw=kwargs.get('lw', 1))
-
-        plot.xlim(-1e-3*t0, delay_end)
-        plot.ylim(-1, 1)
-
-    # Plot fraction of significantly tuned units.
-    if plot_sig is not None:
-        plot = plot_sig
-
-        psig = np.sum(1*(pvals < 0.05), axis=0)/len(units)
-        plot.plot(1e-3*(t[1:idx_f2_end]-t0), psig[1:idx_f2_end],
-                  color='0.2', lw=kwargs.get('lw', 1))
-
-        plot.xlim(1e-3*(t[0]-t0), 1e-3*(t[idx_f2_end-1]-t0))
-        #plot.lim('y', psig, lower=0)
-        plot.ylim(0, 1)
-
-    # Shared plot properties
-    prop = {'mfc': '0.2',
-            'mec': 'none',
-            'ms':  kwargs.get('ms', 2)}
-
-    # Plot a1, end of delay vs. stimulus
-    if plot_stim is not None:
-        plot = plot_stim
-        plot.equal()
-
-        for i in xrange(len(units)):
-            plot.plot(a1s[i,idx_stim], a1s[i,idx_delay_end], 'o', **prop)
-
-    # Plot a1, end of delay vs. middle of delay
-    if plot_delay is not None:
-        plot = plot_delay
-        plot.equal()
-
-        for i in xrange(len(units)):
-            plot.plot(a1s[i,idx_delay], a1s[i,idx_delay_end], 'o', **prop)
-
-#=========================================================================================
-
 def do(action, args, p):
-    """
-    Manage tasks.
-
-    """
+    
     print("ACTION*:   " + str(action))
     print("ARGS*:     " + str(args))
 
-    #-------------------------------------------------------------------------------------
-    # Trials
-    #-------------------------------------------------------------------------------------
 
     if action == 'trials':
         run_trials(p, args)
-
-    #-------------------------------------------------------------------------------------
-    # Psychometric function
-    #-------------------------------------------------------------------------------------
-
+    
     elif action == 'psychometric':
         fig  = Figure()
         plot = fig.add()
-
-        #---------------------------------------------------------------------------------
-        # Plot
-        #---------------------------------------------------------------------------------
 
         trialsfile = get_trialsfile(p)
         psychometric_function(trialsfile, plot)
@@ -454,22 +333,12 @@ def do(action, args, p):
         plot.xlabel('$f_1$ (Hz)')
         plot.ylabel('$f_2$ (Hz)')
 
-        #---------------------------------------------------------------------------------
-
         fig.save(path=p['figspath'], name=p['name']+'_'+action)
         fig.close()
-
-    #-------------------------------------------------------------------------------------
-    # Sort
-    #-------------------------------------------------------------------------------------
-
+    
     elif action == 'sort':
         sort_trials(get_trialsfile(p), get_sortedfile(p))
-
-    #-------------------------------------------------------------------------------------
-    # Plot single-unit activity aligned to stimulus onset
-    #-------------------------------------------------------------------------------------
-
+    
     elif action == 'units':
         from glob import glob
 
@@ -503,10 +372,6 @@ def do(action, args, p):
             fig  = Figure()
             plot = fig.add()
 
-            #-----------------------------------------------------------------------------
-            # Plot
-            #-----------------------------------------------------------------------------
-
             plot_unit(i, sortedfile, plot, smap)
 
             plot.xlabel('Time (ms)')
@@ -519,8 +384,8 @@ def do(action, args, p):
 
             fig.save(path=p['figspath'], name=p['name']+'_unit{:03d}'.format(i))
             fig.close()
-
-    #-------------------------------------------------------------------------------------
-
+    
     else:
         print("[ {}.do ] Unrecognized action '{}'.".format(THIS, action))
+    
+

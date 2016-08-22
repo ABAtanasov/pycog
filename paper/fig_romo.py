@@ -12,19 +12,19 @@ import numpy as np
 from pycog             import RNN
 from pycog.figtools    import Figure, mpl
 from pycog.utils       import get_here, get_parent
-from examples.analysis import romo
+from examples.analysis import romo              #problem here
 
 import paper
 
 #=========================================================================================
-# Paths
+# Paths         (Don't worry about this one, it just literally saves the paths)
 #=========================================================================================
 
 here     = get_here(__file__)
 base     = get_parent(here)
 figspath = join(here, 'figs')
 
-modelfile  = join(base, 'examples', 'models', 'romo.py')
+modelfile  = join(base, 'examples', 'models', 'romo.py')        #This is romo.py
 savefile   = join(base, 'examples', 'work', 'data', 'romo', 'romo.pkl')
 trialsfile = join(paper.scratchpath, 'romo', 'trials', 'romo_trials.pkl')
 sortedfile = join(paper.scratchpath, 'romo', 'trials', 'romo_sorted.pkl')
@@ -34,7 +34,7 @@ sortedfile = join(paper.scratchpath, 'romo', 'trials', 'romo_sorted.pkl')
 #=========================================================================================
 
 # Load model
-m = imp.load_source('model', modelfile)
+m = imp.load_source('model', modelfile)     #This imports our romo.py
 
 units = {
     'L': 18,
@@ -44,16 +44,16 @@ units = {
 # Color map
 cmap = mpl.cm.jet
 norm = mpl.colors.Normalize(vmin=m.fmin, vmax=m.fmax)
-smap = mpl.cm.ScalarMappable(norm, cmap)
+smap = mpl.cm.ScalarMappable(norm, cmap)        #To plot frequencies as different colors
 
 #=========================================================================================
 # Figure setup
 #=========================================================================================
 
-w   = 6.3
+w   = 6.3               #width, height, and the ratio
 h   = 4
 r   = w/h
-fig = Figure(w=w, h=h, axislabelsize=7, labelpadx=5, labelpady=5.5,
+fig = Figure(w=w, h=h, axislabelsize=7, labelpadx=5, labelpady=5.5,      #initiate figure
              thickness=0.6, ticksize=3, ticklabelsize=6, ticklabelpad=2,
              format=paper.format)
 
@@ -138,7 +138,7 @@ plotlabels = {
 fig.plotlabels(plotlabels, fontsize=paper.plotlabelsize)
 
 #=========================================================================================
-# Labels
+# Labels            Labels over each subplot
 #=========================================================================================
 
 plot = plots['tune']
@@ -283,7 +283,7 @@ plot.ylim(-0.4, 0.4); plot.yticks([-0.4, 0, 0.4])
 #=========================================================================================
 # Single units
 #=========================================================================================
-
+''''
 yall = []
 for name, unit in units.items():
     plot = plots[name]
@@ -309,5 +309,5 @@ for name, unit in units.items():
     plot.highlight(1e-3*(f2_start-t0), 1e-3*(f2_end-t0))
 
 #=========================================================================================
-
+'''
 fig.save(path=figspath)
